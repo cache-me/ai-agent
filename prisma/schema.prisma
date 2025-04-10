@@ -7,48 +7,346 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Account {
-  id                String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String  @db.ObjectId
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  sessionToken String   @unique
-  userId       String   @db.ObjectId
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
+// User model for portfolio owner and visitors
 model User {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
+  id              String           @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  email           String           @unique
+  password        String?
+  image           String?
+  bio             String?
+  role            Role             @default(USER)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  skills          Skill[]
+  education       Education[]
+  experiences     Experience[]
+  projects        Project[]
+  socialLinks     SocialLink[]
+  feedbacks       Feedback[]
+  contactRequests ContactRequest[]
+  jobAlerts       JobAlert[]
+
+  // User engagement in portfolio
+  visitedAt       DateTime?
+  engagementStats UserEngagement?
 }
 
-model VerificationToken {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  identifier String
-  token      String   @unique
-  expires    DateTime
+enum Role {
+  USER
+  ADMIN
+  CLIENT
+}
 
-  @@unique([identifier, token])
+// User engagement statistics
+model UserEngagement {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @unique @db.ObjectId
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visitCount        Int      @default(0)
+  averageTimeOnSite Int      @default(0) // in seconds
+  lastVisitedPages  String[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Skills model
+model Skill {
+  id                String         @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  category          SkillCategory
+  proficiency       Int // 1-100
+  yearsOfExperience Float
+  icon              String?
+  description       String?
+  userId            String         @db.ObjectId
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects          ProjectSkill[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+enum SkillCategory {
+  FRONTEND
+  BACKEND
+  DATABASE
+  DEVOPS
+  DESIGN
+  AI_ML
+  MOBILE
+  OTHER
+}
+
+// Education model
+model Education {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  institution  String
+  degree       String
+  fieldOfStudy String
+  startDate    DateTime
+  endDate      DateTime?
+  grade        String?
+  description  String?
+  userId       String    @db.ObjectId
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// Work experience model
+model Experience {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  company      String
+  position     String
+  location     String?
+  startDate    DateTime
+  endDate      DateTime?
+  current      Boolean   @default(false)
+  description  String?
+  achievements String[]
+  userId       String    @db.ObjectId
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// Projects model
+model Project {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String
+  longDescription String?
+  demoUrl         String?
+  githubUrl       String?
+  thumbnailUrl    String?
+  images          String[]
+  featured        Boolean         @default(false)
+  skills          ProjectSkill[]
+  category        ProjectCategory
+  completionDate  DateTime?
+  userId          String          @db.ObjectId
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model ProjectSkill {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String  @db.ObjectId
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skillId   String  @db.ObjectId
+  skill     Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, skillId])
+}
+
+enum ProjectCategory {
+  WEB
+  MOBILE
+  AI_ML
+  DEVOPS
+  OTHER
+}
+
+// Social links model
+model SocialLink {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  platform  SocialPlatform
+  url       String
+  userId    String         @db.ObjectId
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+enum SocialPlatform {
+  GITHUB
+  LINKEDIN
+  TWITTER
+  INSTAGRAM
+  YOUTUBE
+  FACEBOOK
+  DRIBBBLE
+  MEDIUM
+  OTHER
+}
+
+// Feedback model
+model Feedback {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String
+  message   String
+  rating    Int? // 1-5
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Contact request model
+model ContactRequest {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  email       String
+  company     String?
+  phone       String?
+  message     String
+  projectType ProjectType?
+  budget      Float?
+  status      RequestStatus @default(PENDING)
+  userId      String        @db.ObjectId
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+enum ProjectType {
+  OPEN_SOURCE
+  FREELANCE
+  FULL_TIME
+  CONSULTATION
+  OTHER
+}
+
+enum RequestStatus {
+  PENDING
+  CONTACTED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+// AI Agent models
+
+// Job alerts from AI agent
+model JobAlert {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  jobTitle       String
+  company        String
+  location       String?
+  description    String
+  requirements   String[]
+  salary         String?
+  applicationUrl String?
+  confidence     Float // AI confidence score
+  appliedAt      DateTime?
+  status         JobStatus @default(IDENTIFIED)
+  userId         String    @db.ObjectId
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+enum JobStatus {
+  IDENTIFIED
+  APPLIED
+  INTERVIEW_SCHEDULED
+  REJECTED
+  ACCEPTED
+}
+
+// Resume distribution tracking
+model ResumeDistribution {
+  id            String             @id @default(auto()) @map("_id") @db.ObjectId
+  companyName   String
+  contactEmail  String?
+  contactPerson String?
+  sentDate      DateTime           @default(now())
+  followUpDate  DateTime?
+  status        DistributionStatus @default(SENT)
+  response      String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+enum DistributionStatus {
+  SENT
+  VIEWED
+  RESPONDED
+  INTERVIEW
+  REJECTED
+  NO_RESPONSE
+}
+
+// Portfolio updates and reminders
+model PortfolioReminder {
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
+  title            String
+  description      String
+  dueDate          DateTime
+  priority         Priority         @default(MEDIUM)
+  completed        Boolean          @default(false)
+  category         ReminderCategory
+  notificationSent Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ReminderCategory {
+  SKILL_UPDATE
+  PROJECT_ADD
+  RESUME_UPDATE
+  EXPERIENCE_UPDATE
+  CONTENT_REFRESH
+  OTHER
+}
+
+// AI chat interactions
+model ChatInteraction {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  visitorName  String?
+  visitorEmail String?
+  conversation ChatMessage[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model ChatMessage {
+  id        String          @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  sender    MessageSender
+  timestamp DateTime        @default(now())
+  chatId    String          @db.ObjectId
+  chat      ChatInteraction @relation(fields: [chatId], references: [id], onDelete: Cascade)
+}
+
+enum MessageSender {
+  USER
+  AI
+}
+
+// Analytics
+model AnalyticsData {
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  date                   DateTime @default(now())
+  visitors               Int      @default(0)
+  pageViews              Int      @default(0)
+  averageSessionDuration Int      @default(0) // in seconds
+  bounceRate             Float    @default(0) // percentage
+  topPages               Json? // {"page": "count"}
+  geolocation            Json? // {"country": "count"}
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+// Technology Trends for AI agent to track
+model TechnologyTrend {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  category        String
+  popularityScore Float
+  growthRate      Float
+  description     String
+  relatedSkills   String[]
+  sourceUrl       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
